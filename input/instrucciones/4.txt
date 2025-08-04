@@ -1,0 +1,6 @@
+NOP
+INC AX
+ADD BX, 2
+SUB CX, AX
+NOP
+JMP 0
