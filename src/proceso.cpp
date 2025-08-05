@@ -78,69 +78,13 @@ void ejecutarProcesos(std::vector<Proceso>& procesos) {
         strcpy(p.estado, "Ejecutando");
         cout << ">> Ejecutando PID " << p.pid << " durante " << p.quantum << " ciclos o hasta que no hayan mas instrucciones." << endl;
         int ciclosEjecutados = 0;
-        // Leer instrucciones del archivo correspondiente al proceso
-        string nombreArchivo = "input/instrucciones/" + to_string(p.pid) + ".txt";
-        vector<string> instrucciones;
-        ifstream archivoInst(nombreArchivo);
-        if (archivoInst.is_open()) {
-            string lineaInst;
-            while (getline(archivoInst, lineaInst)) {
-                instrucciones.push_back(lineaInst);
-            }
-            archivoInst.close();
-        } else {
-            cerr << "No se pudo abrir el archivo de instrucciones para PID " << p.pid << endl;
-        }
-
-        while (p.quantum > 0 && p.pc < (int)instrucciones.size()) {
-            string inst = instrucciones[p.pc];
-            // Eliminar espacios y comas extra
-            for (auto& c : inst) if (c == ',') c = ' ';
-            istringstream iss(inst);
-            string op;
-            iss >> op;
-            if (op == "INC") {
-                string reg;
-                iss >> reg;
-                if (reg == "AX") p.ax++;
-                else if (reg == "BX") p.bx++;
-                else if (reg == "CX") p.cx++;
-            } else if (op == "ADD" || op == "SUB" || op == "MUL") {
-                string reg1, reg2;
-                iss >> reg1 >> reg2;
-                int *dest = nullptr;
-                if (reg1 == "AX") dest = &p.ax;
-                else if (reg1 == "BX") dest = &p.bx;
-                else if (reg1 == "CX") dest = &p.cx;
-
-                if (dest) {
-                    int val = 0;
-                    if (reg2 == "AX") val = p.ax;
-                    else if (reg2 == "BX") val = p.bx;
-                    else if (reg2 == "CX") val = p.cx;
-                    else {
-                        val = stoi(reg2);
-                    }
-                    if (op == "ADD") *dest += val;
-                    else if (op == "SUB") *dest -= val;
-                    else if (op == "MUL") *dest *= val;
-                }
-            } else if (op == "NOP") {
-                // No hacer nada
-            } else if (op == "JMP") {
-                int destino;
-                iss >> destino;
-                if (destino >= 0 && destino < (int)instrucciones.size()) {
-                    p.pc = destino - 1; // -1 porque se incrementa abajo
-                }
-            }
-            p.pc++;
-            ciclosEjecutados++;
-            p.quantum--;
-            cout << "   Ciclo " << ciclosEjecutados << " | PC = " << p.pc << " | Quantum restante = " << p.quantum << " | Inst: " << inst << endl;
-            mostrarProcesos(procesos);
-            cout << "\n";
-        }
+        
+        p.pc++;
+        ciclosEjecutados++;
+        p.quantum--;
+        cout << "   Ciclo " << ciclosEjecutados << " | PC = " << p.pc << " | Quantum restante = " << p.quantum << " | Inst: " << inst << endl;
+        mostrarProcesos(procesos);
+        cout << "\n";
 
         if (p.pc >= (int)instrucciones.size()) {
             cout << "Proceso " << p.pid << " ha terminado todas sus instrucciones." << endl;
