@@ -1,70 +1,101 @@
+
 #include "proceso.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <unordered_map>
+#include <vector>
+#include <algorithm>
 using namespace std;
 
-std::vector<Proceso> cargarDesdeArchivo(const std::string& nombreArchivo) {
-    std::vector<Proceso> procesos;
+// Se declara la funcion para cargar los procesos desde un archivo
+std::unordered_map<int, Proceso> cargarDesdeArchivo(const std::string& nombreArchivo) {
+    std::unordered_map<int, Proceso> procesos;
     std::ifstream archivo(nombreArchivo);
+
+    // Verifica si el archivo se abrió correctamente
     if (!archivo.is_open()) {
         cerr << "Error: No se pudo abrir el archivo " << nombreArchivo << endl;
         return procesos;
     }
+
+    // Lee el archivo línea por línea y extrae los datos de cada proceso
     string linea;
     while (getline(archivo, linea)) {
         if (linea.find("PID:") != string::npos) {
             Proceso p;
+
+            // Inicializa los campos en 0 y despues lee dato por dato
             p.pc = 0;
-            p.ax = 0; // Inicializa AX en 0
-            p.bx = 0; // Inicializa BX en 0
-            p.cx = 0; // Inicializa CX en 0
+            p.ax = 0;
+            p.bx = 0; 
+            p.cx = 0; 
             strcpy(p.estado, "Listo");
             istringstream ss(linea);
             string temp;
             ss >> temp >> p.pid;
-            bool ax_set = false, bx_set = false, cx_set = false;
             while (ss >> temp) {
                 if (temp.find("AX=") == 0) {
                     p.ax = stoi(temp.substr(3));
-                    ax_set = true;
                 } else if (temp.find("BX=") == 0) {
                     p.bx = stoi(temp.substr(3));
-                    bx_set = true;
                 } else if (temp.find("CX=") == 0) {
                     p.cx = stoi(temp.substr(3));
-                    cx_set = true;
                 } else if (temp.find("Quantum=") == 0) {
                     p.quantum = stoi(temp.substr(8));
                 } else if (temp.find("Q=") == 0) {
                     p.quantum = stoi(temp.substr(2));
                 }
             }
-            // Si no aparecen AX, BX o CX, ya están en 0
-            procesos.push_back(p);
+            procesos[p.pid] = p;
         }
     }
     archivo.close();
     return procesos;
 }
 
-void mostrarProcesos(const std::vector<Proceso>& procesos) {
+// Se declara la funcion para mostrar los procesos en formato tabla ordenado
+void mostrarProcesos(const std::unordered_map<int, Proceso>& procesos) {
+
+    // Imprime la cabecera de la tabla
     cout << "PID\tPC\tAX\tBX\tCX\tQuantum\tEstado" << endl;
     cout << "---\t--\t--\t--\t--\t-------\t------" << endl;
-    for (const auto& p : procesos) {
+
+    // Obtener los PIDs y ordenarlos
+    vector<int> pids;
+    for (const auto& par : procesos) {
+        pids.push_back(par.first);
+    }
+    sort(pids.begin(), pids.end());
+
+    // Imprimir cada proceso en formato tabla
+    for (int pid : pids) {
+        const Proceso& p = procesos.at(pid);
         cout << p.pid << "\t" << p.pc << "\t" << p.ax << "\t"
              << p.bx << "\t" << p.cx << "\t" << p.quantum << "\t"
              << p.estado << endl;
     }
 }
 
-void ejecutarProcesos(std::vector<Proceso>& procesos) {
+// Funcion para ejecutar los procesos en un planificador Round Robin
+void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
     cout << "\n=== INICIO DE PLANIFICACIÓN ROUND ROBIN ===" << endl;
-    for (size_t i = 0; i < procesos.size(); ++i) {
-        Proceso& p = procesos[i];
+
+    // Para mantener el orden de ejecución, creamos un vector de PIDs ordenados
+    vector<int> ordenPIDs;
+    for (const auto& par : procesos) {
+        ordenPIDs.push_back(par.first);
+    }
+    sort(ordenPIDs.begin(), ordenPIDs.end());
+
+    // Ejecuta cada proceso en el orden de los PIDs
+    for (size_t i = 0; i < ordenPIDs.size(); ++i) {
+        int pid = ordenPIDs[i];
+        Proceso& p = procesos[pid];
         if (i > 0) {
-            Proceso& anterior = procesos[i - 1];
+            int pidAnterior = ordenPIDs[i - 1];
+            Proceso& anterior = procesos[pidAnterior];
             cout << "\n[Cambio de contexto]" << endl;
             cout << "Guardando estado de Proceso " << anterior.pid
                  << ": PC=" << anterior.pc
@@ -78,8 +109,11 @@ void ejecutarProcesos(std::vector<Proceso>& procesos) {
         strcpy(p.estado, "Ejecutando");
         cout << ">> Ejecutando PID " << p.pid << " durante " << p.quantum << " ciclos o hasta que no hayan mas instrucciones." << endl;
         int ciclosEjecutados = 0;
+
         // Leer instrucciones del archivo correspondiente al proceso
         string nombreArchivo = "input/instrucciones/" + to_string(p.pid) + ".txt";
+
+        // Verifica si el archivo de instrucciones existe y se puede abrir
         vector<string> instrucciones;
         ifstream archivoInst(nombreArchivo);
         if (archivoInst.is_open()) {
@@ -91,57 +125,72 @@ void ejecutarProcesos(std::vector<Proceso>& procesos) {
         } else {
             cerr << "No se pudo abrir el archivo de instrucciones para PID " << p.pid << endl;
         }
-
+        
+        // Ejecuta las instrucciones del proceso hasta que se agote el quantum o no haya más instrucciones
         while (p.quantum > 0 && p.pc < (int)instrucciones.size()) {
             string inst = instrucciones[p.pc];
-            // Eliminar espacios y comas extra
+
+            // Eliminar espacios y comas extra, ya que sin eso  estaba provocando errores
             for (auto& c : inst) if (c == ',') c = ' ';
             istringstream iss(inst);
             string op;
             iss >> op;
+
+            // Si la instruccion es INC entonces incrementa el registro correspondiente
             if (op == "INC") {
                 string reg;
                 iss >> reg;
                 if (reg == "AX") p.ax++;
                 else if (reg == "BX") p.bx++;
                 else if (reg == "CX") p.cx++;
-            } else if (op == "ADD" || op == "SUB" || op == "MUL") {
+            } 
+            // Si la instruccion es ADD, SUB o MUL entonces realiza la operacion correspondiente
+            else if (op == "ADD" || op == "SUB" || op == "MUL") {
                 string reg1, reg2;
                 iss >> reg1 >> reg2;
                 int *dest = nullptr;
                 if (reg1 == "AX") dest = &p.ax;
                 else if (reg1 == "BX") dest = &p.bx;
                 else if (reg1 == "CX") dest = &p.cx;
-
                 if (dest) {
                     int val = 0;
+
+                    // Si reg2 es un registro, se obtiene su valor, si no es un registro, se convierte a entero
                     if (reg2 == "AX") val = p.ax;
                     else if (reg2 == "BX") val = p.bx;
                     else if (reg2 == "CX") val = p.cx;
-                    else {
-                        val = stoi(reg2);
-                    }
+                    else val = stoi(reg2);
                     if (op == "ADD") *dest += val;
                     else if (op == "SUB") *dest -= val;
                     else if (op == "MUL") *dest *= val;
                 }
-            } else if (op == "NOP") {
+            } 
+
+            // Si la instruccion es NOP entonces no hace nada
+            else if (op == "NOP") {
                 // No hacer nada
-            } else if (op == "JMP") {
-                int destino;
-                iss >> destino;
-                if (destino >= 0 && destino < (int)instrucciones.size()) {
-                    p.pc = destino - 1; // -1 porque se incrementa abajo
+            } 
+
+            // Si la instruccion es JMP entonces salta a la instruccion indicada
+            else if (op == "JMP") {
+                int salto;
+                if (iss >> salto) {
+                    p.pc = salto - 1;
                 }
             }
+
+            // Incrementa el contador de programa y el quantum
             p.pc++;
             ciclosEjecutados++;
             p.quantum--;
+
+            // Muestra el estado del proceso después de cada instrucción la tabla
             cout << "   Ciclo " << ciclosEjecutados << " | PC = " << p.pc << " | Quantum restante = " << p.quantum << " | Inst: " << inst << endl;
             mostrarProcesos(procesos);
             cout << "\n";
         }
 
+        // Verifica si el proceso ha terminado todas sus instrucciones o si se ha agotado su quantum
         if (p.pc >= (int)instrucciones.size()) {
             cout << "Proceso " << p.pid << " ha terminado todas sus instrucciones." << endl;
             strcpy(p.estado, "Terminado");
