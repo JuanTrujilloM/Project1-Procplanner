@@ -144,12 +144,15 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
         // Ejecuta las instrucciones del proceso hasta que se agote el quantum o no haya más instrucciones
         while (p.quantum > 0 && p.pc < (int)instrucciones.size()) {
             // Simular interrupción aleatoria (20% de probabilidad)
-            int prob = rand() % 100;
-            if (prob < 20) {
-                strcpy(p.estado, "Bloqueado");
-                cout << "   [Interrupción] Proceso " << p.pid << " se bloquea antes de agotar el quantum." << endl;
-                if (log.is_open()) log << "[Interrupción] Proceso " << p.pid << " se bloquea antes de agotar el quantum en ciclo " << ciclosEjecutados+1 << "." << endl;
-                break; // Sale del ciclo, simulando bloqueo
+            // Solo si el quantum restante está entre 1 y 3 inclusive
+            if (p.quantum >= 1 && p.quantum <= 3) {
+                int prob = rand() % 100;
+                if (prob < 30) {
+                    strcpy(p.estado, "Bloqueado");
+                    cout << "   [Interrupción] Proceso " << p.pid << " se bloquea antes de agotar el quantum." << endl;
+                    if (log.is_open()) log << "[Interrupción] Proceso " << p.pid << " se bloquea antes de agotar el quantum en ciclo " << ciclosEjecutados+1 << "." << endl;
+                    break; // Sale del ciclo, simulando bloqueo
+                }
             }
 
             string inst = instrucciones[p.pc];
