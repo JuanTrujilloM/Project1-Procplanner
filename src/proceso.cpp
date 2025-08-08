@@ -195,7 +195,13 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
             else if (op == "JMP") {
                 int salto;
                 if (iss >> salto) {
-                    p.pc = salto - 1;
+                    if (salto > (int)instrucciones.size() || salto < 1) {
+                        cerr << "[Error] Proceso " << p.pid << ": JMP a instrucción fuera de rango (" << salto << ")." << endl;
+                        if (log.is_open()) log << "[Error] Proceso " << p.pid << ": JMP a instrucción fuera de rango (" << salto << ")." << endl;
+                        break;
+                    } else {
+                        p.pc = salto - 1;
+                    }
                 }
             }
 
