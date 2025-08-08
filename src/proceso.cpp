@@ -1,4 +1,3 @@
-
 #include "proceso.h"
 #include <iostream>
 #include <fstream>
@@ -81,6 +80,14 @@ void mostrarProcesos(const std::unordered_map<int, Proceso>& procesos) {
 // Funcion para ejecutar los procesos en un planificador Round Robin
 void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
     cout << "\n=== INICIO DE PLANIFICACIÓN ROUND ROBIN ===" << endl;
+    // Inicializar aleatoriedad para interrupciones simuladas
+    srand(time(0));
+
+    // Abrir archivo de log
+    ofstream log("simulacion.log");
+    if (!log.is_open()) {
+        cerr << "No se pudo abrir simulacion.log para escribir el seguimiento." << endl;
+    }
 
     // Para mantener el orden de ejecución, creamos un vector de PIDs ordenados
     vector<int> ordenPIDs;
@@ -105,9 +112,16 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
                  << ": PC=" << p.pc
                  << ", AX=" << p.ax
                  << ", BX=" << p.bx << endl << endl;
+            if (log.is_open()) {
+                log << "[Cambio de contexto] Guardando estado de Proceso " << anterior.pid
+                    << ": PC=" << anterior.pc << ", AX=" << anterior.ax << ", BX=" << anterior.bx << endl;
+                log << "[Cambio de contexto] Cargando estado de Proceso " << p.pid
+                    << ": PC=" << p.pc << ", AX=" << p.ax << ", BX=" << p.bx << endl;
+            }
         }
         strcpy(p.estado, "Ejecutando");
         cout << ">> Ejecutando PID " << p.pid << " durante " << p.quantum << " ciclos o hasta que no hayan mas instrucciones." << endl;
+        if (log.is_open()) log << ">> Ejecutando PID " << p.pid << " durante " << p.quantum << " ciclos o hasta que no hayan mas instrucciones." << endl;
         int ciclosEjecutados = 0;
 
         // Leer instrucciones del archivo correspondiente al proceso
@@ -124,13 +138,22 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
             archivoInst.close();
         } else {
             cerr << "No se pudo abrir el archivo de instrucciones para PID " << p.pid << endl;
+            if (log.is_open()) log << "No se pudo abrir el archivo de instrucciones para PID " << p.pid << endl;
         }
-        
+
         // Ejecuta las instrucciones del proceso hasta que se agote el quantum o no haya más instrucciones
         while (p.quantum > 0 && p.pc < (int)instrucciones.size()) {
-            string inst = instrucciones[p.pc];
+            // Simular interrupción aleatoria (20% de probabilidad)
+            int prob = rand() % 100;
+            if (prob < 20) {
+                strcpy(p.estado, "Bloqueado");
+                cout << "   [Interrupción] Proceso " << p.pid << " se bloquea antes de agotar el quantum." << endl;
+                if (log.is_open()) log << "[Interrupción] Proceso " << p.pid << " se bloquea antes de agotar el quantum en ciclo " << ciclosEjecutados+1 << "." << endl;
+                break; // Sale del ciclo, simulando bloqueo
+            }
 
-            // Eliminar espacios y comas extra, ya que sin eso  estaba provocando errores
+            string inst = instrucciones[p.pc];
+            // Eliminar espacios y comas extra
             for (auto& c : inst) if (c == ',') c = ' ';
             istringstream iss(inst);
             string op;
@@ -154,8 +177,6 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
                 else if (reg1 == "CX") dest = &p.cx;
                 if (dest) {
                     int val = 0;
-
-                    // Si reg2 es un registro, se obtiene su valor, si no es un registro, se convierte a entero
                     if (reg2 == "AX") val = p.ax;
                     else if (reg2 == "BX") val = p.bx;
                     else if (reg2 == "CX") val = p.cx;
@@ -165,13 +186,9 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
                     else if (op == "MUL") *dest *= val;
                 }
             } 
-
-            // Si la instruccion es NOP entonces no hace nada
             else if (op == "NOP") {
                 // No hacer nada
             } 
-
-            // Si la instruccion es JMP entonces salta a la instruccion indicada
             else if (op == "JMP") {
                 int salto;
                 if (iss >> salto) {
@@ -186,6 +203,7 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
 
             // Muestra el estado del proceso después de cada instrucción la tabla
             cout << "   Ciclo " << ciclosEjecutados << " | PC = " << p.pc << " | Quantum restante = " << p.quantum << " | Inst: " << inst << endl;
+            if (log.is_open()) log << "PID " << p.pid << " | Ciclo " << ciclosEjecutados << " | PC=" << p.pc << " | Quantum=" << p.quantum << " | Inst: " << inst << endl;
             mostrarProcesos(procesos);
             cout << "\n";
         }
@@ -193,13 +211,21 @@ void ejecutarProcesos(std::unordered_map<int, Proceso>& procesos) {
         // Verifica si el proceso ha terminado todas sus instrucciones o si se ha agotado su quantum
         if (p.pc >= (int)instrucciones.size()) {
             cout << "Proceso " << p.pid << " ha terminado todas sus instrucciones." << endl;
+            if (log.is_open()) log << "Proceso " << p.pid << " ha terminado todas sus instrucciones." << endl;
             strcpy(p.estado, "Terminado");
             mostrarProcesos(procesos);
         } else if (p.quantum == 0) {
             cout << "Proceso " << p.pid << " ha agotado su quantum." << endl;
+            if (log.is_open()) log << "Proceso " << p.pid << " ha agotado su quantum." << endl;
             strcpy(p.estado, "Terminado");
             mostrarProcesos(procesos);
+        } else if (strcmp(p.estado, "Bloqueado") == 0) {
+            if (log.is_open()) log << "Proceso " << p.pid << " quedó bloqueado (interrumpido)." << endl;
         }
     }
     cout << "\n=== FIN DE LA PLANIFICACIÓN ===\n" << endl;
+    if (log.is_open()) {
+        log << "\n=== FIN DE LA PLANIFICACIÓN ===\n" << endl;
+        log.close();
+    }
 }
