@@ -1,0 +1,30 @@
+>> Ejecutando PID 1 durante 3 ciclos o hasta que no hayan mas instrucciones.
+[Interrupción] Proceso 1 se bloquea antes de agotar el quantum en ciclo 1.
+Proceso 1 quedó bloqueado (interrumpido).
+[Cambio de contexto] Guardando estado de Proceso 1: PC=0, AX=0, BX=1
+[Cambio de contexto] Cargando estado de Proceso 2: PC=0, AX=1, BX=3
+>> Ejecutando PID 2 durante 2 ciclos o hasta que no hayan mas instrucciones.
+PID 2 | Ciclo 1 | PC=1 | Quantum=1 | Inst: ADD AX 2
+PID 2 | Ciclo 2 | PC=2 | Quantum=0 | Inst: SUB BX 1
+Proceso 2 ha agotado su quantum.
+[Cambio de contexto] Guardando estado de Proceso 2: PC=2, AX=3, BX=2
+[Cambio de contexto] Cargando estado de Proceso 3: PC=0, AX=2, BX=5
+>> Ejecutando PID 3 durante 1 ciclos o hasta que no hayan mas instrucciones.
+PID 3 | Ciclo 1 | PC=1 | Quantum=0 | Inst: MUL AX 10
+Proceso 3 ha agotado su quantum.
+[Cambio de contexto] Guardando estado de Proceso 3: PC=1, AX=20, BX=5
+[Cambio de contexto] Cargando estado de Proceso 4: PC=0, AX=3, BX=7
+>> Ejecutando PID 4 durante 2 ciclos o hasta que no hayan mas instrucciones.
+PID 4 | Ciclo 1 | PC=1 | Quantum=1 | Inst: ADD AX 10
+PID 4 | Ciclo 2 | PC=2 | Quantum=0 | Inst: MUL BX 2
+Proceso 4 ha agotado su quantum.
+[Cambio de contexto] Guardando estado de Proceso 4: PC=2, AX=13, BX=14
+[Cambio de contexto] Cargando estado de Proceso 5: PC=0, AX=4, BX=9
+>> Ejecutando PID 5 durante 3 ciclos o hasta que no hayan mas instrucciones.
+PID 5 | Ciclo 1 | PC=1 | Quantum=2 | Inst: NOP
+PID 5 | Ciclo 2 | PC=2 | Quantum=1 | Inst: NOP
+PID 5 | Ciclo 3 | PC=3 | Quantum=0 | Inst: NOP
+Proceso 5 ha agotado su quantum.
+
+=== FIN DE LA PLANIFICACIÓN ===
+
